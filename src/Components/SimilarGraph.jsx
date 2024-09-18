@@ -54,20 +54,29 @@ function SimilarGraph({ data }) {
             }));
         }
 
-        function pearsonCorrelation(dataA, dataB) {
-            const n = Math.min(dataA.length, dataB.length);
-            if (n === 0) return 0;
+        function dtwDistance(dataA, dataB) {
+            const n = dataA.length;
+            const m = dataB.length;
 
-            const sumA = dataA.slice(0, n).reduce((acc, val) => acc + val, 0);
-            const sumB = dataB.slice(0, n).reduce((acc, val) => acc + val, 0);
-            const sumA2 = dataA.slice(0, n).reduce((acc, val) => acc + val * val, 0);
-            const sumB2 = dataB.slice(0, n).reduce((acc, val) => acc + val * val, 0);
-            const sumAB = dataA.slice(0, n).reduce((acc, val, i) => acc + val * dataB[i], 0);
+            const dtw = Array(n + 1).fill(null).map(() => Array(m + 1).fill(Infinity));
+            dtw[0][0] = 0;
 
-            const numerator = n * sumAB - sumA * sumB;
-            const denominator = Math.sqrt((n * sumA2 - sumA * sumA) * (n * sumB2 - sumB * sumB));
+            for (let i = 1; i <= n; i++) {
+                for (let j = 1; j <= m; j++) {
+                    const cost = Math.abs(dataA[i - 1] - dataB[j - 1]);
+                    dtw[i][j] = cost + Math.min(dtw[i - 1][j], dtw[i][j - 1], dtw[i - 1][j - 1]);
+                }
+            }
 
-            return denominator === 0 ? 0 : numerator / denominator;
+            return dtw[n][m];
+        }
+
+        function calculateSimilarityPercentageWithDTW(referenceData) {
+            const dtwDistanceValue = dtwDistance(
+                normalizedDataSet.map(d => d.y),
+                referenceData.map(d => d.y)
+            );
+            return Math.max(0, 100 - dtwDistanceValue);
         }
 
         const normalizedData1 = normalizeData(data1);
@@ -75,18 +84,9 @@ function SimilarGraph({ data }) {
         const normalizedData3 = normalizeData(data3);
         const normalizedDataSet = normalizeData(dataSet);
 
-        function calculateSimilarityPercentage(referenceData) {
-            const minLength = Math.min(normalizedDataSet.length, referenceData.length);
-            const correlation = pearsonCorrelation(
-                normalizedDataSet.slice(0, minLength).map(d => d.y),
-                referenceData.slice(0, minLength).map(d => d.y)
-            );
-            return Math.abs(correlation) * 100;
-        }
-
-        const similarity1 = calculateSimilarityPercentage(normalizedData1);
-        const similarity2 = calculateSimilarityPercentage(normalizedData2);
-        const similarity3 = calculateSimilarityPercentage(normalizedData3);
+        const similarity1 = calculateSimilarityPercentageWithDTW(normalizedData1);
+        const similarity2 = calculateSimilarityPercentageWithDTW(normalizedData2);
+        const similarity3 = calculateSimilarityPercentageWithDTW(normalizedData3);
 
         return [similarity1, similarity2, similarity3];
     }
